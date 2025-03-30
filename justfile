@@ -1,8 +1,9 @@
-name := 'cosmic-applet-template'
-export APPID := 'com.example.CosmicAppletTemplate'
+name := 'world-clocks'
+export APPID := 'it.jmwh.WorldClocks'
 
 rootdir := ''
-prefix := '/usr'
+# prefix := '/usr'
+prefix := '/home/jarrad/.local'
 flatpak-prefix := '/app'
 
 base-dir := absolute_path(clean(rootdir / prefix))

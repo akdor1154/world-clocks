@@ -1,14 +1,22 @@
 [package]
-name = "cosmic-applet-template"
+name = "world-clocks"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0"
 rust-version = "1.80"
+authors = [
+    "Jarrad Whitaker <akdor1154@gmail.com>"
+]
 
 [dependencies]
+chrono = "0.4.40"
 i18n-embed-fl = "0.8"
+itertools = "0.14.0"
+once_cell = "1.21.3"
 open = "5.1.3"
 rust-embed = "8.3.0"
+tokio = { version = "1.44.1", features = ["time"] }
+tzfile = "0.1.3"
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic.git"
@@ -24,3 +32,12 @@ features = ["fluent-system", "desktop-requester"]
 # libcosmic = { path = "../libcosmic" }
 # cosmic-config = { path = "../libcosmic/cosmic-config" }
 # cosmic-theme = { path = "../libcosmic/cosmic-theme" }
+
+[package.metadata.deb]
+name = "cosmic-world-clocks"
+assets = [
+    ["target/release/world-clocks", "usr/bin/", "755"],
+    ["res/*.desktop", "usr/share/applications/", "644"],
+    ["res/*.metainfo.xml", "usr/share/metainfo/", "644"],
+    ["res/icons/**/*.svg", "usr/share/icons/", "644"],
+]

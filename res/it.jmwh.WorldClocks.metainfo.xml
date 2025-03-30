@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.example.CosmicAppletTemplate</id>
+  <id>it.jmwh.WorldClocks</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-only</project_license>
   <project_group>COSMIC</project_group>
@@ -22,7 +22,7 @@
       <mimetype>text/plain</mimetype>
     </mimetypes>
     <binaries>
-      <binary>cosmic-applet-template</binary>
+      <binary>world-clocks</binary>
     </binaries>
   </provides>
 </component>

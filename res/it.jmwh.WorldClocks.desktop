@@ -1,6 +1,6 @@
 [Desktop Entry]
-Name=COSMIC Applet Template
-Exec=cosmic-applet-template %F
+Name=World Clocks Applet
+Exec=world-clocks %F
 Terminal=false
 Type=Application
 StartupNotify=true
