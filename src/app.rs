@@ -2,20 +2,19 @@
 
 use chrono::DurationRound;
 use cosmic::app::{Core, Task};
-use cosmic::iced::border::width;
 use cosmic::iced::futures::SinkExt;
 use cosmic::iced::{stream, window, Alignment, Length, Limits, Subscription};
-use cosmic::iced_widget::{row, Row};
+use cosmic::iced_widget::Row;
 use cosmic::iced_winit::commands::popup::{destroy_popup, get_popup};
 use cosmic::widget::{self, autosize, horizontal_space, settings, vertical_space};
 use cosmic::{Application, Element};
-use itertools::Itertools;
 use once_cell::sync::Lazy;
 use tokio::time;
 
 use crate::fl;
 
 struct Tz {
+    #[allow(dead_code)]
     fullname: String,
     shortname: String,
     tz: tzfile::Tz,
