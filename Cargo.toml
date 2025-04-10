@@ -9,13 +9,18 @@ authors = [
 ]
 
 [dependencies]
+anyhow = "1.0.97"
 chrono = "0.4.40"
 i18n-embed-fl = "0.8"
 itertools = "0.14.0"
 once_cell = "1.21.3"
 open = "5.1.3"
 rust-embed = "8.3.0"
+serde = { version = "1.0.219", features = ["derive"] }
 tokio = { version = "1.44.1", features = ["time"] }
+tracing = "0.1.41"
+tracing-log = "0.2.0"
+tracing-subscriber = "0.3.19"
 tzfile = "0.1.3"
 
 [dependencies.libcosmic]
@@ -41,3 +46,6 @@ assets = [
     ["res/*.metainfo.xml", "usr/share/metainfo/", "644"],
     ["res/icons/**/*.svg", "usr/share/icons/", "644"],
 ]
+
+[profile.release]
+lto = false

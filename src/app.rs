@@ -1,55 +1,64 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::sync::LazyLock;
+
 use chrono::DurationRound;
 use cosmic::app::{Core, Task};
+use cosmic::cosmic_config::{ConfigGet, ConfigSet, CosmicConfigEntry};
 use cosmic::iced::futures::SinkExt;
-use cosmic::iced::{stream, window, Alignment, Length, Limits, Subscription};
+use cosmic::iced::{self, stream, window, Alignment, Length, Limits, Subscription};
 use cosmic::iced_widget::Row;
 use cosmic::iced_winit::commands::popup::{destroy_popup, get_popup};
 use cosmic::widget::{self, autosize, horizontal_space, settings, vertical_space};
-use cosmic::{Application, Element};
-use once_cell::sync::Lazy;
+use cosmic::{cosmic_config, Application, Element};
 use tokio::time;
 
-use crate::fl;
+use crate::{config, editor, fl};
+use crate::config::WorldClocksConfig;
+use anyhow::{Result, Context};
 
 struct Tz {
     #[allow(dead_code)]
-    fullname: String,
-    shortname: String,
+    name: String,
+    display_name: String,
     tz: tzfile::Tz,
 }
 
 impl Tz {
-    fn from_name(name: &str) -> Option<Tz> {
-        let Ok(tz) = tzfile::Tz::named(name) else {
-            return None;
-        };
-        let shortname = name.rsplitn(2, "/").next().unwrap().to_owned();
-        Tz {
-            fullname: name.to_owned(),
-            shortname: shortname,
+    fn from_names(name: &str, display_name: &str) -> Result<Tz> {
+        let tz = tzfile::Tz::named(name).context(format!("Couldn\'t load timezone {}", name))?;
+        Ok(Tz {
+            name: name.to_owned(),
+            display_name: display_name.to_owned(),
             tz,
-        }
-        .into()
+        })
     }
+
+    fn from_name(name: &str) -> Result<Tz> {
+        let display_name = name.rsplitn(2, "/").next().unwrap().to_owned();
+        return Self::from_names(name, &display_name)
+    }
+
 }
 
 /// This is the struct that represents your application.
 /// It is used to define the data that will be used by your application.
-#[derive(Default)]
+// #[derive(Default)]
 pub struct YourApp {
     /// Application state which is managed by the COSMIC runtime.
     core: Core,
     /// The popup id.
     popup: Option<window::Id>,
+    editor: editor::Editor,
     /// Example row toggler.
-    example_row: bool,
+    // example_row: bool,
     now: chrono::DateTime<chrono::Utc>,
-    tzs: Vec<Tz>,
+    // config
+    config: cosmic_config::Config,
+    timezones: Vec<Result<Tz>>,
 }
 
-static AUTOSIZE_MAIN_ID: Lazy<widget::Id> = Lazy::new(|| widget::Id::new("autosize-main"));
+static AUTOSIZE_MAIN_ID: LazyLock<widget::Id> = LazyLock::new(|| widget::Id::new("autosize-main"));
 /// This is the enum that contains all the possible variants that your application will need to transmit messages.
 /// This is used to communicate between the different parts of your application.
 /// If your application does not need to send messages, you can use an empty enum or `()`.
@@ -57,8 +66,22 @@ static AUTOSIZE_MAIN_ID: Lazy<widget::Id> = Lazy::new(|| widget::Id::new("autosi
 pub enum Message {
     TogglePopup,
     PopupClosed(window::Id),
-    ToggleExampleRow(bool),
+    // ToggleExampleRow(bool),
     Tick,
+    ConfigChanged(WorldClocksConfig),
+    Editor(editor::Message)
+}
+
+impl From<editor::Message> for Message {
+    fn from(msg: editor::Message) -> Self {
+        Self::Editor(msg)
+    }
+}
+
+impl YourApp {
+    fn tzs_from_config(c: &WorldClocksConfig) -> Vec<Result<Tz>> {
+        return c.timezones.iter().map(|tz| { Tz::from_names(&tz.name, &tz.display_name)}).collect()
+    }
 }
 
 /// Implement the `Application` trait for your application.
@@ -94,15 +117,29 @@ impl Application for YourApp {
     /// - `flags` is used to pass in any data that your application needs to use before it starts.
     /// - `Command` type is used to send messages to your application. `Command::none()` can be used to send no messages to your application.
     fn init(core: Core, _flags: Self::Flags) -> (Self, Task<Self::Message>) {
+        let cconfig = cosmic_config::Config::new(YourApp::APP_ID, 1).unwrap();
+        // TODO: try to see if local config doesn't exist yet, if so write the default.
+
+        // let mut config = match WorldClocksConfig::get_entry(&cconfig) {
+        //     Ok(config) => config,
+        //     Err((e, config)) => {
+        //         println!("{:#?}", e); // TODO!!
+        //         config
+        //     }
+        // };
+        let config = WorldClocksConfig::default();
+
+        let timezones = YourApp::tzs_from_config(&config);
+
+
         let app = YourApp {
             core,
             now: chrono::Utc::now(),
-            tzs: vec![
-                Tz::from_name("UTC").unwrap(),
-                Tz::from_name("Europe/London").unwrap(),
-                Tz::from_name("Australia/Perth").unwrap(),
-            ],
-            ..Default::default()
+            config: cconfig,
+            timezones: timezones,
+            popup: None,
+            editor: editor::Editor::default()
+            // ..Default::default()
         };
 
         (app, Task::none())
@@ -119,9 +156,14 @@ impl Application for YourApp {
     ///
     /// To get a better sense of which widgets are available, check out the `widget` module.
     fn view(&self) -> Element<Self::Message> {
-        let texts = self.tzs.iter().map(|tz| {
+
+
+        let texts = self.timezones.iter().map(|rtz| {
+            let Ok(tz) = rtz else {
+                return Element::from(self.core.applet.text("Error!"))
+            };
             let time_str = self.now.with_timezone(&&tz.tz).format("%H:%M");
-            let s = format!("{} {}", time_str, tz.shortname);
+            let s = format!("{} {}", time_str, tz.display_name);
             Element::from(self.core.applet.text(s))
         });
 
@@ -146,15 +188,16 @@ impl Application for YourApp {
     }
 
     fn view_window(&self, _id: window::Id) -> Element<Self::Message> {
-        let content_list = widget::list_column()
-            .padding(5)
-            .spacing(0)
-            .add(settings::item(
-                fl!("example-row"),
-                widget::toggler(self.example_row).on_toggle(Message::ToggleExampleRow),
-            ));
+        // let content_list = widget::list_column()
+        //     .padding(5)
+        //     .spacing(0)
+        //     .add(settings::item(
+        //         fl!("example-row"),
+        //         widget::toggler(self.example_row).on_toggle(Message::ToggleExampleRow),
+        //     ));
+        // self.core.applet.popup_container(content_list).into()
 
-        self.core.applet.popup_container(content_list).into()
+        self.core.applet.popup_container(self.editor.view().map(Message::Editor)).into()
     }
 
     /// Application messages are handled here. The application state can be modified based on
@@ -188,10 +231,21 @@ impl Application for YourApp {
                     self.popup = None;
                 }
             }
-            Message::ToggleExampleRow(toggled) => self.example_row = toggled,
+            Message::ConfigChanged(c) => {
+                self.timezones = YourApp::tzs_from_config(&c)
+            }
             Message::Tick => {
                 self.now = chrono::Utc::now();
             }
+            Message::Editor(msg) => {
+                match self.editor.update(msg) {
+                    None => {},
+                    Some(editor::Output::NewConfig(c)) => {
+                        c.write_entry(&self.config).unwrap();
+                    }
+                };
+            }
+
         }
         Task::none()
     }
@@ -224,6 +278,13 @@ impl Application for YourApp {
             )
         }
 
-        Subscription::batch(vec![time_subscription()])
+        let config_subscription = self.core.watch_config(Self::APP_ID).map(|u| {
+            for err in u.errors {
+                tracing::error!(?err, "Error watching config");
+            }
+            Message::ConfigChanged(u.config)
+        });
+
+        Subscription::batch(vec![time_subscription(), config_subscription])
     }
 }
