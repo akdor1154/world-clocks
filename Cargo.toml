@@ -1,12 +1,10 @@
 [package]
 name = "world-clocks"
-version = "0.1.1"
+version = "1.0.0"
 edition = "2021"
 license = "GPL-3.0"
 rust-version = "1.80"
-authors = [
-    "Jarrad Whitaker <akdor1154@gmail.com>"
-]
+authors = ["Jarrad Whitaker <akdor1154@gmail.com>"]
 
 [dependencies]
 anyhow = "1.0.97"
@@ -43,10 +41,26 @@ features = ["fluent-system", "desktop-requester"]
 [package.metadata.deb]
 name = "cosmic-world-clocks"
 assets = [
-    ["target/release/world-clocks", "usr/bin/", "755"],
-    ["res/*.desktop", "usr/share/applications/", "644"],
-    ["res/*.metainfo.xml", "usr/share/metainfo/", "644"],
-    ["res/icons/**/*.svg", "usr/share/icons/", "644"],
+    [
+        "target/release/world-clocks",
+        "usr/bin/",
+        "755",
+    ],
+    [
+        "res/*.desktop",
+        "usr/share/applications/",
+        "644",
+    ],
+    [
+        "res/*.metainfo.xml",
+        "usr/share/metainfo/",
+        "644",
+    ],
+    [
+        "res/icons/**/*.svg",
+        "usr/share/icons/",
+        "644",
+    ],
 ]
 
 [profile.release]
