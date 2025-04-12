@@ -3,9 +3,10 @@
 use app::YourApp;
 /// The `app` module is used by convention to indicate the main component of our application.
 mod app;
-mod core;
 mod config;
+mod core;
 mod editor;
+mod tz;
 
 /// The `cosmic::app::run()` function is the starting point of your application.
 /// It takes two arguments:
@@ -15,7 +16,6 @@ mod editor;
 fn main() -> cosmic::iced::Result {
     tracing_subscriber::fmt::init();
     let _ = tracing_log::LogTracer::init();
-
 
     cosmic::applet::run::<YourApp>(())
 }

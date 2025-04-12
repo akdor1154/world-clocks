@@ -12,6 +12,7 @@ use rust_embed::RustEmbed;
 #[folder = "i18n/"]
 struct Localizations;
 
+#[allow(dead_code)]
 pub static LANGUAGE_LOADER: LazyLock<FluentLanguageLoader> = LazyLock::new(|| {
     let loader: FluentLanguageLoader = fluent_language_loader!();
 

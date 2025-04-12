@@ -4,42 +4,17 @@ use std::sync::LazyLock;
 
 use chrono::DurationRound;
 use cosmic::app::{Core, Task};
-use cosmic::cosmic_config::{ConfigGet, ConfigSet, CosmicConfigEntry};
 use cosmic::iced::futures::SinkExt;
-use cosmic::iced::{self, stream, window, Alignment, Length, Limits, Subscription};
+use cosmic::iced::{stream, window, Alignment, Length, Limits, Subscription};
 use cosmic::iced_widget::Row;
 use cosmic::iced_winit::commands::popup::{destroy_popup, get_popup};
-use cosmic::widget::{self, autosize, horizontal_space, settings, vertical_space};
-use cosmic::{cosmic_config, Application, Element};
+use cosmic::widget::{self, autosize, horizontal_space, vertical_space};
+use cosmic::{Application, Element};
 use tokio::time;
 
-use crate::{config, editor, fl};
 use crate::config::WorldClocksConfig;
-use anyhow::{Result, Context};
-
-struct Tz {
-    #[allow(dead_code)]
-    name: String,
-    display_name: String,
-    tz: tzfile::Tz,
-}
-
-impl Tz {
-    fn from_names(name: &str, display_name: &str) -> Result<Tz> {
-        let tz = tzfile::Tz::named(name).context(format!("Couldn\'t load timezone {}", name))?;
-        Ok(Tz {
-            name: name.to_owned(),
-            display_name: display_name.to_owned(),
-            tz,
-        })
-    }
-
-    fn from_name(name: &str) -> Result<Tz> {
-        let display_name = name.rsplitn(2, "/").next().unwrap().to_owned();
-        return Self::from_names(name, &display_name)
-    }
-
-}
+use crate::{editor, tz::ValidTz};
+use anyhow::Result;
 
 /// This is the struct that represents your application.
 /// It is used to define the data that will be used by your application.
@@ -54,8 +29,7 @@ pub struct YourApp {
     // example_row: bool,
     now: chrono::DateTime<chrono::Utc>,
     // config
-    config: cosmic_config::Config,
-    timezones: Vec<Result<Tz>>,
+    timezones: Vec<Result<ValidTz>>,
 }
 
 static AUTOSIZE_MAIN_ID: LazyLock<widget::Id> = LazyLock::new(|| widget::Id::new("autosize-main"));
@@ -69,7 +43,7 @@ pub enum Message {
     // ToggleExampleRow(bool),
     Tick,
     ConfigChanged(WorldClocksConfig),
-    Editor(editor::Message)
+    Editor(editor::Message),
 }
 
 impl From<editor::Message> for Message {
@@ -79,8 +53,12 @@ impl From<editor::Message> for Message {
 }
 
 impl YourApp {
-    fn tzs_from_config(c: &WorldClocksConfig) -> Vec<Result<Tz>> {
-        return c.timezones.iter().map(|tz| { Tz::from_names(&tz.name, &tz.display_name)}).collect()
+    fn tzs_from_config(c: &WorldClocksConfig) -> Vec<Result<ValidTz>> {
+        return c
+            .timezones
+            .iter()
+            .map(|tz| ValidTz::from_names(&tz.name, &tz.display_name))
+            .collect();
     }
 }
 
@@ -117,7 +95,6 @@ impl Application for YourApp {
     /// - `flags` is used to pass in any data that your application needs to use before it starts.
     /// - `Command` type is used to send messages to your application. `Command::none()` can be used to send no messages to your application.
     fn init(core: Core, _flags: Self::Flags) -> (Self, Task<Self::Message>) {
-        let cconfig = cosmic_config::Config::new(YourApp::APP_ID, 1).unwrap();
         // TODO: try to see if local config doesn't exist yet, if so write the default.
 
         // let mut config = match WorldClocksConfig::get_entry(&cconfig) {
@@ -131,15 +108,12 @@ impl Application for YourApp {
 
         let timezones = YourApp::tzs_from_config(&config);
 
-
         let app = YourApp {
             core,
             now: chrono::Utc::now(),
-            config: cconfig,
             timezones: timezones,
             popup: None,
-            editor: editor::Editor::default()
-            // ..Default::default()
+            editor: editor::Editor::new(YourApp::APP_ID), // ..Default::default()
         };
 
         (app, Task::none())
@@ -156,11 +130,9 @@ impl Application for YourApp {
     ///
     /// To get a better sense of which widgets are available, check out the `widget` module.
     fn view(&self) -> Element<Self::Message> {
-
-
         let texts = self.timezones.iter().map(|rtz| {
             let Ok(tz) = rtz else {
-                return Element::from(self.core.applet.text("Error!"))
+                return Element::from(self.core.applet.text("Error!"));
             };
             let time_str = self.now.with_timezone(&&tz.tz).format("%H:%M");
             let s = format!("{} {}", time_str, tz.display_name);
@@ -197,7 +169,10 @@ impl Application for YourApp {
         //     ));
         // self.core.applet.popup_container(content_list).into()
 
-        self.core.applet.popup_container(self.editor.view().map(Message::Editor)).into()
+        self.core
+            .applet
+            .popup_container(self.editor.view().map(Message::Editor))
+            .into()
     }
 
     /// Application messages are handled here. The application state can be modified based on
@@ -231,21 +206,15 @@ impl Application for YourApp {
                     self.popup = None;
                 }
             }
-            Message::ConfigChanged(c) => {
-                self.timezones = YourApp::tzs_from_config(&c)
-            }
+            Message::ConfigChanged(c) => self.timezones = YourApp::tzs_from_config(&c),
             Message::Tick => {
                 self.now = chrono::Utc::now();
             }
             Message::Editor(msg) => {
                 match self.editor.update(msg) {
-                    None => {},
-                    Some(editor::Output::NewConfig(c)) => {
-                        c.write_entry(&self.config).unwrap();
-                    }
+                    None => {}
                 };
             }
-
         }
         Task::none()
     }
