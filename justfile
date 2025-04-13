@@ -3,7 +3,7 @@ export APPID := 'it.jmwh.WorldClocks'
 
 rootdir := ''
 # prefix := '/usr'
-prefix := '/home/jarrad/.local'
+prefix := "$HOME/.local"
 flatpak-prefix := '/app'
 
 base-dir := absolute_path(clean(rootdir / prefix))
@@ -91,6 +91,16 @@ uninstall:
     for size in `ls {{icons-src}}`; do \
         rm "{{icons-dst}}/$size/apps/{{APPID}}.svg"; \
     done
+
+debs:
+    cross build --target aarch64-unknown-linux-gnu --release
+    cargo deb --target aarch64-unknown-linux-gnu --no-build
+    cross build --target x86_64-unknown-linux-gnu --release
+    cargo deb --target x86_64-unknown-linux-gnu --no-build
+
+install_packaging_dependencies:
+    cargo install cargo-deb
+    cargo install cross --git https://github.com/cross-rs/cross
 
 # Vendor dependencies locally
 vendor:

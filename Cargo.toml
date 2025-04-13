@@ -5,6 +5,7 @@ edition = "2021"
 license = "GPL-3.0"
 rust-version = "1.80"
 authors = ["Jarrad Whitaker <akdor1154@gmail.com>"]
+description = "COMIC Panel applet to show clocks in arbitrary timezones."
 
 [dependencies]
 anyhow = "1.0.97"
@@ -62,6 +63,7 @@ assets = [
         "644",
     ],
 ]
+depends = ["libc6", "libxkbcommon0", "tzdata"]
 
 [profile.release]
 lto = false
